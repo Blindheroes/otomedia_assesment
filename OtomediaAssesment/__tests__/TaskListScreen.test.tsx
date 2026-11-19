@@ -40,26 +40,17 @@ describe('TaskListScreen', () => {
     });
   });
 
-  it('renders tasks and handles search input', async () => {
-    // Just await render. RTL automatically wraps this in act()
-    await render(<TaskListScreen />);
+  it('renders tasks and handles live search input', async () => {
+    render(<TaskListScreen />);
 
-    // findByText automatically waits for the initial fetch to resolve
-    expect(await screen.findByText('Task A')).toBeTruthy();
+    // Wait for the initial fetch to resolve
+    await waitFor(() => expect(screen.getByText('Task A')).toBeTruthy());
 
     // Type in search input
     const searchInput = screen.getByPlaceholderText('Search tasks...');
     fireEvent.changeText(searchInput, 'Task A');
 
-    // Wait for the input state to update
-    await waitFor(() => {
-      expect(searchInput.props.value).toBe('Task A');
-    });
-
-    // Press the search button
-    fireEvent.press(screen.getByText('Search'));
-
-    // Verify the API was called with the keyword
+    // Wait for the 300ms debounce to fire and the API to be called
     await waitFor(() => {
       expect(mockGetTasks).toHaveBeenCalledWith(
         expect.objectContaining({ keyword: 'Task A', page: 1 }),
@@ -68,9 +59,9 @@ describe('TaskListScreen', () => {
   });
 
   it('handles status filter selection', async () => {
-    await render(<TaskListScreen />);
+    render(<TaskListScreen />);
 
-    expect(await screen.findByText('Task A')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Task A')).toBeTruthy());
 
     // Press "Done" filter
     fireEvent.press(screen.getByText('Done'));

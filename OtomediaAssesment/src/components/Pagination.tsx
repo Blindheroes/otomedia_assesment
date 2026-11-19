@@ -19,7 +19,7 @@ export function Pagination({ meta, loading, onPageChange }: Props) {
         onPress={() => onPageChange(meta.page - 1)}
         style={[styles.btn, (isFirst || loading) && styles.btnDisabled]}
       >
-        <Text style={styles.btnText}>‹ Prev</Text>
+        <Text style={styles.btnText}>‹</Text>
       </TouchableOpacity>
 
       <Text style={styles.pageText}>
@@ -31,7 +31,7 @@ export function Pagination({ meta, loading, onPageChange }: Props) {
         onPress={() => onPageChange(meta.page + 1)}
         style={[styles.btn, (isLast || loading) && styles.btnDisabled]}
       >
-        <Text style={styles.btnText}>Next ›</Text>
+        <Text style={styles.btnText}>›</Text>
       </TouchableOpacity>
     </View>
   );
@@ -42,18 +42,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderColor: '#eee',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(60,60,67,0.12)',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
-  btn: { padding: 8 },
+  btn: {
+    padding: 10,
+    backgroundColor: 'rgba(118,118,128,0.12)',
+    borderRadius: 16,
+  },
   btnDisabled: { opacity: 0.3 },
-  btnText: { color: '#007AFF', fontSize: 16, fontWeight: '500' },
+  btnText: {
+    color: '#007AFF',
+    fontSize: 22,
+    fontWeight: '300',
+    lineHeight: 22,
+  },
   pageText: {
     color: '#8E8E93',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
+    fontVariant: ['tabular-nums'],
   },
 });
