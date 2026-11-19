@@ -167,19 +167,19 @@ The frontend test suite covers component rendering, debounced search, and status
 
 Displays the task list, search input, and status filters.
 
-![Task List](screenshots/task-list.png)
+![Task List](screenshots/task-list.PNG)
 
 ### 2. Add / Edit Task Modal
 
 Displays the bottom sheet with Cancel and Save actions and task form fields.
 
-![Add / Edit Modal](screenshots/edit-modal.png)
+![Add / Edit Modal](screenshots/edit-modal.PNG)
 
 ### 3. Empty & Loading States
 
 Displays the loading skeleton and the empty-search state.
 
-![Loading State](screenshots/loading-state.png)
+![Loading State](screenshots/loading-state.PNG)
 
 ---
 
