@@ -163,8 +163,6 @@ The frontend test suite covers component rendering, debounced search, and status
 
 ## 📱 App Screenshots
 
-The following screenshots demonstrate the application UI. Add the corresponding image files to the `screenshots/` directory in the repository.
-
 ### 1. Task List & Search
 
 Displays the task list, search input, and status filters.
