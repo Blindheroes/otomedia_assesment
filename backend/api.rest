@@ -1,0 +1,286 @@
+################################################################################
+# Task Management API — manual test suite
+#
+# Usage (VS Code):
+#   1. Install extension: "REST Client" (humao.rest-client)
+#   2. Start the server:  go run ./cmd/server
+#   3. Click "Send Request" above any request block.
+#
+# Conventions:
+#   - A "###" line separates requests.
+#   - @name before a request lets later requests reference its response.
+#   - Requests are ordered to build state step-by-step.
+################################################################################
+
+@baseUrl = http://localhost:8080
+@contentType = application/json
+
+################################################################################
+# 0. HEALTH
+################################################################################
+
+### 0.1 Health check — expect 200 {"status":"ok"}
+GET {{baseUrl}}/health
+
+
+################################################################################
+# 1. CREATE (POST /api/tasks)
+#    Task 1.4 (consistent errors) + Task 4.1 (duplicate title → 409)
+################################################################################
+
+### 1.1 Create task — expect 201, returns task with id
+# @name create1
+POST {{baseUrl}}/api/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Fix login bug",
+  "description": "Users cannot log in after token expiry",
+  "status": "todo",
+  "assignee": "alice"
+}
+
+### 1.2 Create — duplicate title — expect 409 DUPLICATE_TITLE
+# Task 4.1: previously this returned 500, must now be 409
+POST {{baseUrl}}/api/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Fix login bug",
+  "status": "todo"
+}
+
+### 1.3 Create — missing title — expect 400 VALIDATION_ERROR
+POST {{baseUrl}}/api/tasks
+Content-Type: {{contentType}}
+
+{
+  "description": "no title given"
+}
+
+### 1.4 Create — invalid status — expect 400 VALIDATION_ERROR
+POST {{baseUrl}}/api/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Invalid status task",
+  "status": "blocked"
+}
+
+### 1.5 Create — minimal body — expect 201, status defaults to "todo"
+POST {{baseUrl}}/api/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Add dashboard"
+}
+
+### 1.6 Create — more tasks (build state for list filtering)
+# @name create2
+POST {{baseUrl}}/api/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Write tests",
+  "description": "Cover service and repository layers",
+  "status": "in_progress",
+  "assignee": "bob"
+}
+
+### 1.7 Create — third task for pagination
+POST {{baseUrl}}/api/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Deploy to staging",
+  "status": "done",
+  "assignee": "alice"
+}
+
+
+################################################################################
+# 2. LIST (GET /api/tasks)
+#    Task 1.1 (filters, pagination, sort) + Task 2 (cache)
+################################################################################
+
+### 2.1 List all — expect 200 with items + meta
+GET {{baseUrl}}/api/tasks
+
+### 2.2 List — filter by status
+GET {{baseUrl}}/api/tasks?status=todo
+
+### 2.3 List — filter by keyword (searches title + description)
+GET {{baseUrl}}/api/tasks?keyword=login
+
+### 2.4 List — filter by assignee
+GET {{baseUrl}}/api/tasks?assignee=alice
+
+### 2.5 List — combined filters
+GET {{baseUrl}}/api/tasks?status=todo&assignee=alice&keyword=fix
+
+### 2.6 List — pagination (page 1, limit 2)
+GET {{baseUrl}}/api/tasks?page=1&limit=2
+
+### 2.7 List — pagination (page 2, limit 2)
+GET {{baseUrl}}/api/tasks?page=2&limit=2
+
+### 2.8 List — sort by title ascending
+GET {{baseUrl}}/api/tasks?sort=title:asc
+
+### 2.9 List — sort by updated_at descending
+GET {{baseUrl}}/api/tasks?sort=updated_at:desc
+
+### 2.10 List — multi-column sort
+GET {{baseUrl}}/api/tasks?sort=status:asc,title:asc
+
+### 2.11 List — invalid sort (whitelist protection, no crash)
+GET {{baseUrl}}/api/tasks?sort=id;DROP%20TABLE%20tasks
+
+### 2.12 List — invalid status → 400
+GET {{baseUrl}}/api/tasks?status=blocked
+
+### 2.13 Cache test — call the SAME query twice
+# First call: cache miss → slower, populates Redis
+# Second call: cache hit → faster, no DB hit
+# Verify:  docker exec -it otoemdia_assesment-redis-1 redis-cli KEYS "tasks:list:*"
+GET {{baseUrl}}/api/tasks?status=todo&page=1&limit=10
+
+### 2.14 Cache test — different query = different key
+GET {{baseUrl}}/api/tasks?status=done&page=1&limit=10
+
+
+################################################################################
+# 3. GET BY ID (GET /api/tasks/{id})
+################################################################################
+
+### 3.1 Get existing task — expect 200
+GET {{baseUrl}}/api/tasks/1
+
+### 3.2 Get non-existent — expect 404 NOT_FOUND
+GET {{baseUrl}}/api/tasks/99999
+
+### 3.3 Get with invalid id — expect 400 VALIDATION_ERROR
+GET {{baseUrl}}/api/tasks/not-a-number
+
+
+################################################################################
+# 4. UPDATE (PUT /api/tasks/{id})
+#    Task 1.2 (partial update) + Task 4.1 (duplicate title → 409)
+################################################################################
+
+### 4.1 Update — full body — expect 200
+PUT {{baseUrl}}/api/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "title": "Fix login bug (v2)",
+  "description": "Now supports refresh tokens",
+  "status": "done",
+  "assignee": "alice"
+}
+
+### 4.2 Update — partial (only status) — expect 200, other fields unchanged
+PUT {{baseUrl}}/api/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "status": "in_progress"
+}
+
+### 4.3 Update — duplicate title — expect 409 DUPLICATE_TITLE
+# Task 4.1: "Add dashboard" already exists
+PUT {{baseUrl}}/api/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "title": "Add dashboard"
+}
+
+### 4.4 Update — non-existent — expect 404
+PUT {{baseUrl}}/api/tasks/99999
+Content-Type: {{contentType}}
+
+{
+  "title": "Ghost"
+}
+
+### 4.5 Update — invalid status — expect 400
+PUT {{baseUrl}}/api/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "status": "blocked"
+}
+
+### 4.6 Update — invalid id — expect 400
+PUT {{baseUrl}}/api/tasks/abc
+Content-Type: {{contentType}}
+
+{
+  "title": "x"
+}
+
+### 4.7 Verify update reflected — expect 200 with the new title
+GET {{baseUrl}}/api/tasks/1
+
+
+################################################################################
+# 5. DELETE (soft) — DELETE /api/tasks/{id}
+#    Task 1.3 + Task 4.3 (hide soft-deleted tasks)
+################################################################################
+
+### 5.1 Soft delete task 1 — expect 204 (no body)
+DELETE {{baseUrl}}/api/tasks/1
+
+### 5.2 Verify it is hidden from list — expect "Fix login bug (v2)" absent
+GET {{baseUrl}}/api/tasks
+
+### 5.3 Verify GET by id now returns 404
+GET {{baseUrl}}/api/tasks/1
+
+### 5.4 Verify row still in DB with deleted_at set
+# Run in PowerShell:
+# docker exec -it otoemdia_assesment-mysql-1 mysql -uroot -proot tasksdb ^
+#   -e "SELECT id, title, deleted_at FROM tasks WHERE id = 1;"
+
+### 5.5 Delete again — expect 404 (already deleted)
+DELETE {{baseUrl}}/api/tasks/1
+
+### 5.6 Delete non-existent — expect 404
+DELETE {{baseUrl}}/api/tasks/99999
+
+### 5.7 Re-create with same title as soft-deleted row — expect 201
+# Task 4.3 edge case: generated active_flag column allows this
+POST {{baseUrl}}/api/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Fix login bug (v2)",
+  "status": "todo"
+}
+
+
+################################################################################
+# 6. CACHE INVALIDATION (Task 2)
+#    Run these in order, checking Redis between steps.
+################################################################################
+
+### 6.1 Prime cache with a query
+GET {{baseUrl}}/api/tasks?status=todo&limit=5
+
+### 6.2 Verify cache populated (PowerShell)
+# docker exec -it otoemdia_assesment-redis-1 redis-cli KEYS "tasks:list:*"
+# docker exec -it otoemdia_assesment-redis-1 redis-cli TTL "tasks:list:status=todo&keyword=&assignee=&page=1&limit=5&sort=created_at:desc"
+
+### 6.3 Trigger invalidation — create a task
+POST {{baseUrl}}/api/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Invalidation test",
+  "status": "todo"
+}
+
+### 6.4 Verify cache gone
+# docker exec -it otoemdia_assesment-redis-1 redis-cli KEYS "tasks:list:*"
+# Expect: (empty array)
